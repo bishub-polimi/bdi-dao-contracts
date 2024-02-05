@@ -1,7 +1,3 @@
-import {
-  time,
-  loadFixture,
-} from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect } from "chai";
 import { ethers } from "hardhat";
@@ -43,7 +39,6 @@ describe("Voting Contract Tests", function () {
     await BdIToken.waitForDeployment();
     console.log('BdI Dao deployed to:', BdIDao.target);
 
-
     // Pre-allocate some Euro funds to the DAO treasury
     await EuroCoin.mint(BdIDao.target, 999);
     var events = await EuroCoin.queryFilter("Transfer");
@@ -60,8 +55,10 @@ describe("Voting Contract Tests", function () {
   // Mint some EuroCoins to the user (addr1)
   await EuroCoin.mint(addr1.address, 25);
   // Log the balance of addr1 after minting
-  var balance = await EuroCoin.balanceOf(addr1.address);
-  console.log(`\n Balance of addr1 BEFORE minting Dao token: ${balance} EuroCoin`);
+  var balance = []; 
+  balance[0] = await EuroCoin.balanceOf(addr1.address);
+  balance[1] = await BdIToken.balanceOf(addr1.address);
+  console.log(`\n Balance of addr1 AFTER minting Dao token: ${balance[0]} EuroCoin and ${balance[1]} BdIToken`);
   
   // Set the DAO contract address
   await BdIToken.setDaoContractAddress(BdIDao.target);
@@ -71,8 +68,10 @@ describe("Voting Contract Tests", function () {
   let tx = await (user as any).mint(addr1.address, 25);
   await expect(tx.wait()).to.not.be.reverted;
   await tx.wait();
-  balance = await EuroCoin.balanceOf(addr1.address);
-  console.log(`\n Balance of addr1 AFTER minting Dao token: ${balance} EuroCoin`);
+  balance = []; 
+  balance[0] = await EuroCoin.balanceOf(addr1.address);
+  balance[1] = await BdIToken.balanceOf(addr1.address);
+  console.log(`\n Balance of addr1 AFTER minting Dao token: ${balance[0]} EuroCoin and ${balance[1]} BdIToken`);
   balance = await EuroCoin.balanceOf(BdIDao.target);
   console.log(`\n Balance DAO: ${balance} EuroCoin`);
 
@@ -104,7 +103,57 @@ describe("Voting Contract Tests", function () {
            description: ${event.args.description}`);
       }
      });
-
     
   });
+
+  it("should delegate votes", async function () {
+
+    var votingPower = await BdIToken.getVotes(addr1.address);
+    console.log(`\n Voting power of addr1 before delegate: ${votingPower}`);
+
+    //const delegateAmount = 25;
+    let user = await BdIToken.connect(addr1)
+    let tx = await (user as any).delegate(addr1.address);
+    await expect(tx.wait()).to.not.be.reverted;
+    await tx.wait();
+
+     // Check that the self-delegation was successful
+    const delegatedBalance = await BdIToken.delegates(addr1.address);
+    expect(delegatedBalance).to.equal(addr1.address);
+
+    votingPower = await BdIToken.getVotes(addr1.address);
+    console.log(`Voting power of addr1 after delegate: ${votingPower}`);
+    expect(votingPower).to.be.gt(0); 
+
+   });
+
+   it("should cast votes", async function () {
+    // Assuming proposalId is known and support is 1 for voting in favor
+    //const proposalId = ethers.BigNumber.from("69928758319013169771121682955982674712934570794577292854686781760546655879863");
+    const proposalId = ethers.parseUnits("69928758319013169771121682955982674712934570794577292854686781760546655879863", 0);
+    const support = 1;
+  
+    // Cast the vote
+    let tx = await BdIDao.connect(addr1).castVote(proposalId, support);
+    await expect(tx.wait()).to.not.be.reverted;
+  
+    const filter = BdIDao.filters.VoteCast(addr1.address, proposalId, null, null, null);
+    var events = await BdIDao.queryFilter(filter);
+  
+    // Log the event details
+    events.forEach((event: { args: any; }) => {
+      if ('args' in event) {
+        console.log(`\n VoteCast event:
+          Voter: ${event.args.voter},
+          ProposalId: ${event.args.proposalId.toString()},
+          Support: ${event.args.support},
+          Weight: ${event.args.weight.toString()},
+          Reason: ${event.args.reason}`);
+      }
+     });
+  
+  });
+
+
+
 });
