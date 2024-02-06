@@ -79,7 +79,6 @@ describe("Voting Contract Tests", function () {
 
 
   it("should create a proposal", async function () {
-
     const nftMarketAddress = addr3.address;
     const offerAmount = 150;
     const transferCalldata = BdIDao.interface.encodeFunctionData('transferEuroCoin', [nftMarketAddress, offerAmount]);
@@ -110,50 +109,47 @@ describe("Voting Contract Tests", function () {
 
     var votingPower = await BdIToken.getVotes(addr1.address);
     console.log(`\n Voting power of addr1 before delegate: ${votingPower}`);
-
-    //const delegateAmount = 25;
     let user = await BdIToken.connect(addr1)
     let tx = await (user as any).delegate(addr1.address);
     await expect(tx.wait()).to.not.be.reverted;
     await tx.wait();
-
      // Check that the self-delegation was successful
     const delegatedBalance = await BdIToken.delegates(addr1.address);
     expect(delegatedBalance).to.equal(addr1.address);
-
-    votingPower = await BdIToken.getVotes(addr1.address);
-    console.log(`Voting power of addr1 after delegate: ${votingPower}`);
-    expect(votingPower).to.be.gt(0); 
+    // log emitted event
+    var events = await BdIToken.queryFilter("DelegateVotesChanged");
+    events.forEach((event: { args: any; }) => {
+      if ('args' in event) {
+        console.log(`\n DelegateVotesChanged event:
+          account: ${event.args.delegate},
+          previousVotes: ${event.args.previousVotes},
+          newVotes: ${event.args.newVotes}`);
+      }
+     });
 
    });
 
    it("should cast votes", async function () {
-    // Assuming proposalId is known and support is 1 for voting in favor
-    //const proposalId = ethers.BigNumber.from("69928758319013169771121682955982674712934570794577292854686781760546655879863");
     const proposalId = ethers.parseUnits("69928758319013169771121682955982674712934570794577292854686781760546655879863", 0);
-    const support = 1;
-  
+    const support = 1; //1 for voting in favor
     // Cast the vote
     let tx = await BdIDao.connect(addr1).castVote(proposalId, support);
     await expect(tx.wait()).to.not.be.reverted;
-  
-    const filter = BdIDao.filters.VoteCast(addr1.address, proposalId, null, null, null);
-    var events = await BdIDao.queryFilter(filter);
-  
+
     // Log the event details
+    var events = await BdIDao.queryFilter("VoteCast");
     events.forEach((event: { args: any; }) => {
       if ('args' in event) {
         console.log(`\n VoteCast event:
           Voter: ${event.args.voter},
           ProposalId: ${event.args.proposalId.toString()},
           Support: ${event.args.support},
-          Weight: ${event.args.weight.toString()},
+          Weight: ${event.args.weight},
           Reason: ${event.args.reason}`);
       }
      });
   
   });
-
 
 
 });

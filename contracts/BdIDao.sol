@@ -16,14 +16,13 @@ contract BdIDao is Governor, GovernorSettings, GovernorCountingSimple, GovernorV
     
     constructor(IVotes _token, TimelockController _timelock,  IERC20 _euroCoin)
         Governor("BdIDao")
-        GovernorSettings(720 /* 0.5 hours */, 241920 /* 1 week */, 0)
+        GovernorSettings(0, 720, 0)
         GovernorVotes(_token)
         GovernorVotesQuorumFraction(4)
         GovernorTimelockControl(_timelock)
     {
         euroCoin = _euroCoin;
     }
-
 
      // Function to transfer EuroCoin tokens from the DAO treasury
     function transferEuroCoin(address recipient, uint256 amount) external onlyGovernance {
