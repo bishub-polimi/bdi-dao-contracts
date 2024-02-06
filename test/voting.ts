@@ -4,13 +4,12 @@ import { ethers } from "hardhat";
 import { Contract, Signer } from "ethers";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
-
-
 let BdIToken: any;
 let EuroCoin: any;
 let BdIDao: any;
 let zeroAddress = "0x0000000000000000000000000000000000000000";
 let tokenAddress: any;
+let propID: BigInt;
 let owner: SignerWithAddress;
 let addr1: SignerWithAddress;
 let addr2: SignerWithAddress;
@@ -89,6 +88,7 @@ describe("Voting Contract Tests", function () {
     var events = await BdIDao.queryFilter("ProposalCreated");
     events.forEach((event: { args: any; }) => {
       if ('args' in event) {
+        propID = event.args.proposalId;
         const decodedData = BdIDao.interface.decodeFunctionData('transferEuroCoin', event.args.calldatas[0]);
          console.log(`\n ProposalCreated Event:
            proposalId: ${event.args.proposalId},
@@ -130,7 +130,7 @@ describe("Voting Contract Tests", function () {
    });
 
    it("should cast votes", async function () {
-    const proposalId = ethers.parseUnits("69928758319013169771121682955982674712934570794577292854686781760546655879863", 0);
+    const proposalId = propID;
     const support = 1; //1 for voting in favor
     // Cast the vote
     let tx = await BdIDao.connect(addr1).castVote(proposalId, support);
@@ -148,7 +148,6 @@ describe("Voting Contract Tests", function () {
           Reason: ${event.args.reason}`);
       }
      });
-  
   });
 
 
