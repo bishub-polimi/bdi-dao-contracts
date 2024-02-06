@@ -1,7 +1,5 @@
-import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { Contract, Signer } from "ethers";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
 let BdIToken: any;
@@ -25,54 +23,59 @@ describe("Voting Contract Tests", function () {
     // Deploy EuroCoin contract
     EuroCoin = await ethers.deployContract("EuroCoin");
     await EuroCoin.waitForDeployment();
-    console.log('EURO token deployed to:',  EuroCoin.target);
+    console.log(' EURO token deployed to:',  EuroCoin.target);
 
     // Deploy BdIToken contract
     BdIToken = await ethers.deployContract("BdIToken", [EuroCoin.target]);
     await BdIToken.waitForDeployment();
     tokenAddress = BdIToken.target;
-    console.log('BdI token deployed to:', tokenAddress);
+    console.log(' BdI token deployed to:', tokenAddress);
     
     // Deploy BdIDao contract
     BdIDao = await ethers.deployContract("BdIDao", [tokenAddress, zeroAddress, EuroCoin.target]);
     await BdIToken.waitForDeployment();
-    console.log('BdI Dao deployed to:', BdIDao.target);
+    console.log(' BdI Dao deployed to:', BdIDao.target);
 
-    // Pre-allocate some Euro funds to the DAO treasury
-    await EuroCoin.mint(BdIDao.target, 999);
-    var events = await EuroCoin.queryFilter("Transfer");
-     events.forEach((event: { args: any; }) => {
-      if ('args' in event) {
-         console.log(`\n Pre-allocate some Euro funds to the DAO treasury \n Transfer Event: ${event.args}`);
-      }
-     });
+    // Transfer governance token ownership to DAO
+    const changeOwnerTx = await BdIToken.transferOwnership(BdIDao.target);
+    await changeOwnerTx.wait();
+    console.log(` Governance token ownership transferred to DAO with tx ${changeOwnerTx.hash}`);
 
+    // Pre-mint some euros to the users
+    let users = [addr1, addr2, addr3];
+    for(const u of users){
+      const mintTx = await EuroCoin.mint(u.address,100000000);
+      await mintTx.wait();
+      console.log(` User ${u.address} has received 100000000 EuroCoin`);
+    }
     
   });
 
-  it("should mint BdITokens in exchange of Euro Coins", async function () {
-  // Mint some EuroCoins to the user (addr1)
-  await EuroCoin.mint(addr1.address, 25);
-  // Log the balance of addr1 after minting
-  var balance = []; 
-  balance[0] = await EuroCoin.balanceOf(addr1.address);
-  balance[1] = await BdIToken.balanceOf(addr1.address);
-  console.log(`\n Balance of addr1 AFTER minting Dao token: ${balance[0]} EuroCoin and ${balance[1]} BdIToken`);
-  
-  // Set the DAO contract address
-  await BdIToken.setDaoContractAddress(BdIDao.target);
-  // Mint BdI Tokens and check Euro balances
-  let user = BdIToken.connect(addr1);
-  await (EuroCoin as any).connect(addr1).approve(BdIToken.target, 25);
-  let tx = await (user as any).mint(addr1.address, 25);
-  await expect(tx.wait()).to.not.be.reverted;
-  await tx.wait();
-  balance = []; 
-  balance[0] = await EuroCoin.balanceOf(addr1.address);
-  balance[1] = await BdIToken.balanceOf(addr1.address);
-  console.log(`\n Balance of addr1 AFTER minting Dao token: ${balance[0]} EuroCoin and ${balance[1]} BdIToken`);
-  balance = await EuroCoin.balanceOf(BdIDao.target);
-  console.log(`\n Balance DAO: ${balance} EuroCoin`);
+    it("should mint BdITokens in exchange of Euro Coins", async function () {
+
+    const tokenPrice = 10000000;
+    const amountToBuy = 1;
+
+    // Log the balance of addr1 after minting
+    var balance = []; 
+    balance[0] = await EuroCoin.balanceOf(addr1.address);
+    balance[1] = await BdIToken.balanceOf(addr1.address);
+    console.log(`\n Balance of addr1 BEFORE minting Dao token: ${balance[0]} EuroCoin and ${balance[1]} BdIToken`);
+    
+    // Mint BdI Tokens and check Euro balances
+    const user = BdIDao.connect(addr1); //BdIToken.connect(addr1);
+    const approveTx = await (EuroCoin as any).connect(addr1).approve(BdIDao.target, amountToBuy*tokenPrice);
+    await approveTx.wait();
+    const mintTx = await (user as any).mint(amountToBuy);
+    await expect(mintTx).to.not.be.reverted;
+    await mintTx.wait();
+
+    balance = []; 
+    balance[0] = await EuroCoin.balanceOf(addr1.address);
+    balance[1] = await BdIToken.balanceOf(addr1.address);
+    console.log(`\n Balance of addr1 AFTER minting Dao token: ${balance[0]} EuroCoin and ${balance[1]} BdIToken`);
+    balance = await EuroCoin.balanceOf(BdIDao.target);
+    console.log(`\n Balance DAO: ${balance} EuroCoin`);
 
   });
 
@@ -80,16 +83,16 @@ describe("Voting Contract Tests", function () {
   it("should create a proposal", async function () {
     const nftMarketAddress = addr3.address;
     const offerAmount = 150;
-    const transferCalldata = BdIDao.interface.encodeFunctionData('transferEuroCoin', [nftMarketAddress, offerAmount]);
+    const transferCalldata = EuroCoin.interface.encodeFunctionData('transfer', [nftMarketAddress, offerAmount]);
     // Test the creation of a proposal 
-    let tx = await BdIDao.propose([BdIDao.target], [0], [transferCalldata], "Proposal #1: Offer 150 Euro to buy NFT");
+    let tx = await BdIDao.propose([EuroCoin.target], [0], [transferCalldata], "Proposal #1: Offer 150 Euro to buy NFT");
     await expect(tx.wait()).to.not.be.reverted;
     await tx.wait();
     var events = await BdIDao.queryFilter("ProposalCreated");
     events.forEach((event: { args: any; }) => {
       if ('args' in event) {
         propID = event.args.proposalId;
-        const decodedData = BdIDao.interface.decodeFunctionData('transferEuroCoin', event.args.calldatas[0]);
+        const decodedData = EuroCoin.interface.decodeFunctionData('transfer', event.args.calldatas[0]);
          console.log(`\n ProposalCreated Event:
            proposalId: ${event.args.proposalId},
            proposer: ${event.args.proposer},
@@ -126,6 +129,9 @@ describe("Voting Contract Tests", function () {
           newVotes: ${event.args.newVotes}`);
       }
      });
+
+    var newVotingPower = await BdIToken.getVotes(addr1.address);
+    console.log(`\n Voting power of addr1 after delegate: ${newVotingPower}`);
 
    });
 

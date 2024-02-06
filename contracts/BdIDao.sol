@@ -9,24 +9,28 @@ import "@openzeppelin/contracts/governance/extensions/GovernorVotesQuorumFractio
 import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./BdIToken.sol";  
+import "./interfaces/IMintable.sol";
 
 
 contract BdIDao is Governor, GovernorSettings, GovernorCountingSimple, GovernorVotes, GovernorVotesQuorumFraction, GovernorTimelockControl {
     IERC20 public euroCoin;
+    uint256 public TOKEN_PRICE = 10000000;
     
-    constructor(IVotes _token, TimelockController _timelock,  IERC20 _euroCoin)
+    constructor(IVotes _token, TimelockController _timelock,  address _euroCoin)
         Governor("BdIDao")
         GovernorSettings(0, 720, 0)
         GovernorVotes(_token)
         GovernorVotesQuorumFraction(4)
         GovernorTimelockControl(_timelock)
     {
-        euroCoin = _euroCoin;
+        euroCoin = IERC20(_euroCoin);
     }
 
-     // Function to transfer EuroCoin tokens from the DAO treasury
-    function transferEuroCoin(address recipient, uint256 amount) external onlyGovernance {
-        euroCoin.transfer(recipient, amount);
+    function mint(uint256 amount) public {
+        uint256 allowance = euroCoin.allowance(msg.sender, address(this));
+        require(allowance >= amount*TOKEN_PRICE, "Not enough EuroCoin allowance!");
+        euroCoin.transferFrom(msg.sender, address(this), amount*TOKEN_PRICE);
+        IMintable(address(token())).mint(msg.sender,amount);
     }
 
     // The following functions are overrides required by Solidity.

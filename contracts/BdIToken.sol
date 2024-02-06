@@ -7,20 +7,10 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 
 contract BdIToken is ERC20, Ownable, ERC20Permit, ERC20Votes {
-    IERC20 public euroCoin;
-    address public daoAddr;
 
-    constructor(IERC20 _euroCoin) ERC20("BdIToken", "BDI") Ownable(msg.sender) ERC20Permit("BdIToken")
-    { 
-        euroCoin = _euroCoin;
-    }
+    constructor(IERC20 _euroCoin) ERC20("BdIToken", "BDI") Ownable(msg.sender) ERC20Permit("BdIToken"){}
 
-    function setDaoContractAddress(address _add) public onlyOwner {
-        daoAddr = _add;
-    }
-
-    function mint(address to, uint256 amount) external {
-        euroCoin.transferFrom(msg.sender, daoAddr, amount);
+    function mint(address to, uint256 amount) public onlyOwner {
         _mint(to, amount);
     }
 
