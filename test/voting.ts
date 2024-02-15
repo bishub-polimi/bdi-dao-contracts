@@ -2,11 +2,14 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
+const TIMELOCK_DELAY = 300;
+
 let BdIToken: any;
 let EuroCoin: any;
+let TimeLock: any;
 let BdIDao: any;
-let zeroAddress = "0x0000000000000000000000000000000000000000";
 let tokenAddress: any;
+let timelockAddress: any;
 let propID: BigInt;
 let owner: SignerWithAddress;
 let addr1: SignerWithAddress;
@@ -30,11 +33,26 @@ describe("Voting Contract Tests", function () {
     await BdIToken.waitForDeployment();
     tokenAddress = BdIToken.target;
     console.log(' BdI token deployed to:', tokenAddress);
+
+    // Deploy TimeLock contract
+    TimeLock = await ethers.deployContract("TimeLock", [TIMELOCK_DELAY,[ethers.ZeroAddress],[ethers.ZeroAddress],owner.address]);
+    await TimeLock.waitForDeployment();
+    timelockAddress = await TimeLock.getAddress();
+    console.log(' TimeLock deployed to:', timelockAddress);
     
     // Deploy BdIDao contract
-    BdIDao = await ethers.deployContract("BdIDao", [tokenAddress, zeroAddress, EuroCoin.target]);
-    await BdIToken.waitForDeployment();
+    BdIDao = await ethers.deployContract("BdIDao", [tokenAddress, timelockAddress, EuroCoin.target]);
+    await BdIDao.waitForDeployment();
     console.log(' BdI Dao deployed to:', BdIDao.target);
+
+    // Grant PROPOSER_ROLE in TimeLock to DAO and remove owner from Timelock administrators
+    const grantRoleTx = await TimeLock.grantRole(ethers.keccak256(ethers.toUtf8Bytes("PROPOSER_ROLE")),BdIDao.target);
+    await grantRoleTx.wait();
+    console.log(` PROPOSER_ROLE on Timelock granted to DAO with tx ${grantRoleTx.hash}`);
+
+    const changeAdminTx = await TimeLock.grantRole(ethers.keccak256(ethers.toUtf8Bytes("TIMELOCK_ADMIN_ROLE")),timelockAddress);
+    await changeAdminTx.wait();
+    console.log(` TIMELOCK_ADMIN_ROLE on Timelock granted to Timelock itself with tx ${grantRoleTx.hash}`);
 
     // Transfer governance token ownership to DAO
     const changeOwnerTx = await BdIToken.transferOwnership(BdIDao.target);
