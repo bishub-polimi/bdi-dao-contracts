@@ -1,4 +1,5 @@
 import { ethers } from "hardhat";
+import * as hre from 'hardhat';
 
 async function main() {
 
@@ -11,7 +12,7 @@ async function main() {
   console.log(' EURO token deployed to:', euroCoinAddr);
 
   // Deploy BdIToken contract
-  const BdIToken = await ethers.deployContract("BdIToken", [EuroCoin.target]);
+  const BdIToken = await ethers.deployContract("BdIToken", [euroCoinAddr]);
   await BdIToken.waitForDeployment();
   const govTokenAddr = await BdIToken.getAddress();
   console.log(' BdI token deployed to:', govTokenAddr);
@@ -41,6 +42,55 @@ async function main() {
   const changeOwnerTx = await BdIToken.transferOwnership(BdIDao.target);
   await changeOwnerTx.wait();
   console.log(` Governance token ownership transferred to DAO with tx ${changeOwnerTx.hash}`);
+
+  if(process.env.ETHERSCAN_API_KEY != undefined && process.env.ETHERSCAN_API_KEY != ''){
+    // Try to verify contracts
+
+    // EuroCoin
+    try{
+      await hre.run("verify:verify", {
+        address: euroCoinAddr,
+        contract: "contracts/EuroCoin.sol:EuroCoin",
+        constructorArguments: []
+      });
+    } catch (e) {
+      console.log(e)
+    }
+
+    // BdIToken
+    try{
+      await hre.run("verify:verify", {
+        address: govTokenAddr,
+        contract: "contracts/BdIToken.sol:BdIToken",
+        constructorArguments: [euroCoinAddr]
+      });
+    } catch (e) {
+      console.log(e)
+    }
+
+    // TimeLock
+    try{
+      await hre.run("verify:verify", {
+        address: timelockAddr,
+        contract: "contracts/TimeLock.sol:TimeLock",
+        constructorArguments: [300,[ethers.ZeroAddress],[ethers.ZeroAddress],owner.address]
+      });
+    } catch (e) {
+      console.log(e)
+    }
+
+    // BdIDao
+    try{
+      await hre.run("verify:verify", {
+        address: daoAddr,
+        contract: "contracts/BdIDao.sol:BdIDao",
+        constructorArguments: [govTokenAddr, timelockAddr, euroCoinAddr]
+      });
+    } catch (e) {
+      console.log(e)
+    }
+
+  }
 
 }
 

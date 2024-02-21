@@ -14,12 +14,17 @@ const config: HardhatUserConfig = {
     },
   },
   networks : {
-    sepolia : {
+    mumbai : {
       url: process.env.RPC_URL,
       accounts: [`${process.env.PRIVATE_KEY}`]
     }
   },
   defaultNetwork: 'hardhat',
+  etherscan: {
+    apiKey: {
+      polygonMumbai: process.env.ETHERSCAN_API_KEY ? process.env.ETHERSCAN_API_KEY : ''
+    }
+  }
 };
 
 export default config;

@@ -29,7 +29,7 @@ contract BdIDao is Governor, GovernorSettings, GovernorCountingSimple, GovernorV
     function mint(uint256 amount) public {
         uint256 allowance = euroCoin.allowance(msg.sender, address(this));
         require(allowance >= amount*TOKEN_PRICE, "Not enough EuroCoin allowance!");
-        euroCoin.transferFrom(msg.sender, address(this), amount*TOKEN_PRICE);
+        euroCoin.transferFrom(msg.sender, timelock(), amount*TOKEN_PRICE);
         IMintable(address(token())).mint(msg.sender,amount);
     }
 

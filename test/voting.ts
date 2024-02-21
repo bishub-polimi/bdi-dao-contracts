@@ -92,7 +92,7 @@ describe("Voting Contract Tests", function () {
     balance[0] = await EuroCoin.balanceOf(addr1.address);
     balance[1] = await BdIToken.balanceOf(addr1.address);
     console.log(`\n Balance of addr1 AFTER minting Dao token: ${balance[0]} EuroCoin and ${balance[1]} BdIToken`);
-    balance = await EuroCoin.balanceOf(BdIDao.target);
+    balance = await EuroCoin.balanceOf(timelockAddress);
     console.log(`\n Balance DAO: ${balance} EuroCoin`);
 
   });
