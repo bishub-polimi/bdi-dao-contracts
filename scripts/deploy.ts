@@ -11,6 +11,12 @@ async function main() {
   const euroCoinAddr = await EuroCoin.getAddress();
   console.log(' EURO token deployed to:', euroCoinAddr);
 
+  // Deploy FiveSeasonsHotel contract
+  const FiveSeasons = await ethers.deployContract("FiveSeasonsHotel",[euroCoinAddr]);
+  await FiveSeasons.waitForDeployment();
+  const fiveSeasonsAddr = await FiveSeasons.getAddress();
+  console.log(' FiveSeasonsHotel token deployed to:', fiveSeasonsAddr);
+
   // Deploy BdIToken contract
   const BdIToken = await ethers.deployContract("BdIToken", [euroCoinAddr]);
   await BdIToken.waitForDeployment();
@@ -52,6 +58,17 @@ async function main() {
         address: euroCoinAddr,
         contract: "contracts/EuroCoin.sol:EuroCoin",
         constructorArguments: []
+      });
+    } catch (e) {
+      console.log(e)
+    }
+
+    // FiveSeasonsHotel
+    try{
+      await hre.run("verify:verify", {
+        address: fiveSeasonsAddr,
+        contract: "contracts/FiveSeasonsHotel.sol:FiveSeasonsHotel",
+        constructorArguments: [euroCoinAddr]
       });
     } catch (e) {
       console.log(e)
