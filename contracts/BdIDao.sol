@@ -18,9 +18,9 @@ contract BdIDao is Governor, GovernorSettings, GovernorCountingSimple, GovernorV
     
     constructor(IVotes _token, TimelockController _timelock,  address _euroCoin)
         Governor("BdIDao")
-        GovernorSettings(0, 720, 0)
         GovernorVotes(_token)
         GovernorVotesQuorumFraction(4)
+        GovernorSettings(0, 200, 0) //voting delay,voting period,threshold for proposing  
         GovernorTimelockControl(_timelock)
     {
         euroCoin = IERC20(_euroCoin);

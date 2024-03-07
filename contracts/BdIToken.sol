@@ -8,10 +8,14 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 
 contract BdIToken is ERC20, Ownable, ERC20Permit, ERC20Votes {
 
-    constructor(IERC20 _euroCoin) ERC20("BdIToken", "BDI") Ownable(msg.sender) ERC20Permit("BdIToken"){}
+    constructor(IERC20 _euroCoin) ERC20("BdIToken", "GOV") Ownable(msg.sender) ERC20Permit("BdIToken"){}
 
     function mint(address to, uint256 amount) public onlyOwner {
         _mint(to, amount);
+    }
+
+    function decimals() public view virtual override returns (uint8) {
+        return 0;
     }
 
     // The following functions are overrides required by Solidity.

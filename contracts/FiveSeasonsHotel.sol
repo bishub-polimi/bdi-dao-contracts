@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract FiveSeasonsHotel is ERC20,Ownable {
 
   uint256 public TOTAL_SHARES = 100;  
-  uint256 public PRICE_PER_SHARE = 1;
+  uint256 public PRICE_PER_SHARE = 1000000;
   IERC20 public euroCoin;
 
   constructor(address _euroCoin) ERC20("FiveSeasons", "FIVES") Ownable(msg.sender){
