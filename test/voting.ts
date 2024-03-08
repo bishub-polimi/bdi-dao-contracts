@@ -69,7 +69,21 @@ describe("Voting Contract Tests", function () {
     
   });
 
-    it("should mint BdITokens in exchange of Euro Coins", async function () {
+  it("governor deployer should have PROMOTER_ROLE and should be able to whitelist users", async function () {
+
+    const hasRole = await BdIDao.hasRole(ethers.keccak256(ethers.toUtf8Bytes("PROMOTER_ROLE")), owner.address);
+    expect(hasRole).to.eql(true);
+
+    let users = [addr1, addr2, addr3];
+    for(const u of users){
+      const whitelistTx = await BdIDao.setWhitelisted(u.address,true);
+      await whitelistTx.wait();
+      console.log(` User ${u.address} has been whitelisted`);
+    }
+
+  });
+
+  it("should mint BdITokens in exchange of Euro Coins", async function () {
 
     const tokenPrice = 10000000;
     const amountToBuy = 1;

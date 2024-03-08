@@ -8,13 +8,19 @@ import "@openzeppelin/contracts/governance/extensions/GovernorVotes.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorVotesQuorumFraction.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./BdIToken.sol";  
 import "./interfaces/IMintable.sol";
 
 
-contract BdIDao is Governor, GovernorSettings, GovernorCountingSimple, GovernorVotes, GovernorVotesQuorumFraction, GovernorTimelockControl {
+contract BdIDao is AccessControl, Governor, GovernorSettings, GovernorCountingSimple, GovernorVotes, GovernorVotesQuorumFraction, GovernorTimelockControl {
     IERC20 public euroCoin;
     uint256 public TOKEN_PRICE = 10000000;
+
+    bytes32 public constant PROMOTER_ROLE = keccak256("PROMOTER_ROLE");
+
+    mapping(address => bool) public _whitelist;
+    bool public _mintIsOpen;
     
     constructor(IVotes _token, TimelockController _timelock,  address _euroCoin)
         Governor("BdIDao")
@@ -24,9 +30,22 @@ contract BdIDao is Governor, GovernorSettings, GovernorCountingSimple, GovernorV
         GovernorTimelockControl(_timelock)
     {
         euroCoin = IERC20(_euroCoin);
+        _grantRole(DEFAULT_ADMIN_ROLE, address(_timelock));
+        _grantRole(PROMOTER_ROLE, msg.sender);
+        _mintIsOpen = true;
+    }
+
+    function setMintIsOpen(bool isOpen) public onlyRole(PROMOTER_ROLE) {
+        _mintIsOpen = isOpen;
+    }
+
+    function setWhitelisted(address user, bool whitelisted) public onlyRole(PROMOTER_ROLE) {
+        _whitelist[user] = whitelisted;
     }
 
     function mint(uint256 amount) public {
+        require(_mintIsOpen == true, "Minting is currently disabled");
+        require(_whitelist[msg.sender] == true, "User not whitelisted");
         uint256 allowance = euroCoin.allowance(msg.sender, address(this));
         require(allowance >= amount*TOKEN_PRICE, "Not enough EuroCoin allowance!");
         euroCoin.transferFrom(msg.sender, timelock(), amount*TOKEN_PRICE);
@@ -119,5 +138,9 @@ contract BdIDao is Governor, GovernorSettings, GovernorCountingSimple, GovernorV
         returns (address)
     {
         return super._executor();
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view virtual override(Governor, AccessControl) returns (bool) {
+        return super.supportsInterface(interfaceId);
     }
 }
