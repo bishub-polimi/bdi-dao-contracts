@@ -2,47 +2,49 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./DispenserTreasury.sol";
 
 contract Dispenser {
 
-    DispenserTreasury _treasury;
-    mapping (address => bool) _reedemed;
+    mapping (address => bool) public _reedemed;
+    IERC20 public _euro;
+    bytes32 public _root;
 
-    constructor(address treasury){
-        _treasury = DispenserTreasury(treasury);
+    constructor(address euro, bytes32 root) {
+        _euro = IERC20(euro);
+        _root = root;
     }
 
     function redeem(
-            bytes32[] memory proof,
-            uint256 amount,
-            uint256 index
+        uint256 amount,
+        bytes32[] memory proof
         ) public {
-        require(_reedemed[msg.sender] != true, "Already redeemed");
-        require(verify(proof,amount,index) == true, "You are not eligible for redeem");
-        _treasury._token().transferFrom(address(_treasury),msg.sender,amount);
+        require(verify(amount, proof) == true, "Invalid proof");
+        require(_reedemed[msg.sender] != true, "Funds alredy claimed!");
+        _euro.transfer(msg.sender, amount);
         _reedemed[msg.sender] = true;
     }
 
     function verify(
-        bytes32[] memory proof,
         uint256 amount,
-        uint256 index
-    ) public view returns (bool) {
+        bytes32[] memory proof
+         ) public view returns (bool) {
         bytes32 leaf =  keccak256(abi.encodePacked(msg.sender,amount));
-        bytes32 hash = leaf;
+        bytes32 computedHash = leaf;
 
         for (uint256 i = 0; i < proof.length; i++) {
-            bytes32 proofElement = proof[i];
-            if (index % 2 == 0) {
-                hash = keccak256(abi.encodePacked(hash, proofElement));
-            } else {
-                hash = keccak256(abi.encodePacked(proofElement, hash));
-            }
-            index = index / 2;
+        bytes32 proofElement = proof[i];
+
+        if (computedHash <= proofElement) {
+            // Hash(current computed hash + current element of the proof)
+            computedHash = keccak256(abi.encodePacked(computedHash, proofElement));
+        } else {
+            // Hash(current element of the proof + current computed hash)
+            computedHash = keccak256(abi.encodePacked(proofElement, computedHash));
+        }
         }
 
-        return hash == _treasury._root();
-    }
+        // Check if the computed hash (root) is equal to the provided root
+        return computedHash == _root;
+  }
 
 }
